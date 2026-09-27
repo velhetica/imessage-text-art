@@ -6,7 +6,7 @@ rows share the same visual center. Indents are composed greedily from the
 pre-calibrated spacer table, largest first.
 
 Rules the algorithm enforces:
-- Every content character must be a fullwidth form (U+FF00-U+FFEF), U+3000,
+- Every content character must be a fullwidth form (U+FF01-FF60, U+FFE0-FFE6), U+3000,
   U+2588, or an entry in the emoji table. Anything else is flagged by
   check_art instead of silently miscentered.
 - Rows wider than ~19 grid cells will wrap in the iMessage bubble; check_art

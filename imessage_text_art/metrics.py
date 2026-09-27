@@ -21,7 +21,12 @@ def _table():
 
 def _is_grid_char(ch):
     cp = ord(ch)
-    return cp == 0x3000 or 0xFF00 <= cp <= 0xFFEF or cp == 0x2588
+    # U+FF01-FF60 fullwidth ASCII (1em), U+FFE0-FFE6 fullwidth symbols (1em).
+    # U+FF61-FFDC are HALFWIDTH katakana/hangul (0.5em): NOT grid chars.
+    return (cp == 0x3000
+            or 0xFF01 <= cp <= 0xFF60
+            or 0xFFE0 <= cp <= 0xFFE6
+            or cp == 0x2588)
 
 
 def advance_of(cluster, table=None):
