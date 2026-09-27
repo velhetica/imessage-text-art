@@ -1,30 +1,47 @@
 # imessage-text-art
 
-A skill for designing text/ASCII art that actually renders in iMessage.
-Tested live over 6 sends on 2026-09-27.
+Text art that actually renders in iMessage. Not approximately. Exactly.
 
-## The short version
+iMessage uses the proportional San Francisco font, so naive ASCII art comes out skewed, wrapped, or lopsided. This repo is the system I built to beat that: a pre-calibrated centering algorithm plus the rendering rules I learned by sending dozens of pieces to my own phone and screenshotting the results.
 
-iMessage uses a proportional font and tall line spacing, so monospace
-assumptions break. The one weird trick: **U+2800 BRAILLE PATTERN BLANK**
-(⠀) is invisible *and* renders at the same advance width as █ (U+2588),
-so centered, symmetric block art works. Regular spaces and periods
-collapse to ~1/4 width; U+3000 ideographic space is too wide.
+## The trick
 
-Three lanes that survive rendering:
+Fullwidth characters (／ ＼ ｜ ＿ Ｏ ￣, the U+FF00 block) and the ideographic space (U+3000) all render at exactly 1em in iMessage. Together they form a true uniform grid, so real ascii art aligns perfectly. That part needs no measurement: 1em is definitional in CJK typography.
 
-1. **One-liners** (`o==|::::::::>`) — immune to everything.
-2. **Small sketches** (≤8 rows, `/ \ | - +`) — charmingly janky.
-3. **Emoji-square pixel art** (⬜⬛) — true grid alignment.
+The only things that need measuring are the exceptions. Emoji are not 1em (🐄 is 1.29em, which is what kept breaking my layouts). Fractional spacers (en space, thin space, hair space) have platform-specific widths. Those live in `metrics/advances.json`, pre-calibrated by measuring actual CoreText advances on a Mac. You do not need to measure anything.
 
-Never: space-based alignment, solid block fills taller than ~10 rows
-(they render as barcodes), rows wider than ~30 chars.
+## The algorithm
 
-## Use
+1. Author art as plain text, one row per line, content only (no manual centering).
+2. Every character's advance width is looked up: 1em for grid chars, table values for emoji and spacers. Unknown characters are rejected, not guessed.
+3. Canvas width = the widest row. Each row's left indent = (canvas − row width) / 2, composed greedily from the spacer table, largest first.
+4. Every row's visual center lands on canvas / 2 within ~1pt. Verified, not eyeballed.
 
-```
-python3 bin/render.py references/gallery/buster-sword.txt --caption "BUSTER SWORD - FFVII"
+```bash
+python -m imessage_text_art check < examples/ufo-cow.txt   # validate: unknown chars, wrap risk
+python -m imessage_text_art center < examples/ufo-cow.txt  # emit centered art, paste into iMessage
 ```
 
-Grids use `#` for filled and `.` for empty. Example galleries live in
-`references/gallery/`. See `SKILL.md` for the full rules and send workflow.
+## Authoring rules
+
+- Build from fullwidth forms (U+FF00-U+FFEF) plus U+3000 for spacing. That is the grid.
+- Keep rows under ~19 cells wide or the bubble wraps mid-row.
+- iMessage trims trailing whitespace, so never rely on it.
+- Emoji go on the table in `metrics/advances.json` (one measured entry each). The cow is already there.
+- Half-width ASCII (`/ \ |`) cannot be centered reliably next to grid chars. Use the fullwidth versions.
+
+## The lanes
+
+Three things survive iMessage rendering: one-liners (`o==|::::::::>`), small sketch art (max ~8 rows, charmingly janky), and emoji-square pixel art (⬜⬛, a true grid). The fullwidth grid in this repo is the fourth lane and the precise one.
+
+## Recalibration
+
+`metrics/measure.swift` re-measures every advance via CoreText on a Mac. Run it if Apple ever changes font rendering and the table needs refreshing:
+
+```bash
+swift metrics/measure.swift   # adv in points; divide by 17 for em values
+```
+
+## Gallery
+
+`gallery/` holds the experiments that taught me all of this, including the barcode Buster Sword, the spacer shootouts, and every UFO iteration. `examples/ufo-cow.txt` is the flagship: the source the algorithm centers.
